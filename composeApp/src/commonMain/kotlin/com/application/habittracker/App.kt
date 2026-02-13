@@ -1,25 +1,19 @@
 package com.application.habittracker
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
+import com.application.habittracker.nav.RouteMonthScreen
+import com.application.habittracker.nav.RouteTodayScreen
+import com.application.habittracker.screen.TodayScreen
 import com.application.habittracker.theme.AppTheme
 import com.application.habittracker.theme.MyThemeColor
-import org.jetbrains.compose.resources.painterResource
-
-import habittracker.composeapp.generated.resources.Res
-import habittracker.composeapp.generated.resources.compose_multiplatform
 
 @Composable
 fun App(
@@ -42,5 +36,28 @@ fun App(
         dynamicColor = dynamicTheme && dynamicColor
     ) {
         // Your app starts here
+        val backStack = remember { mutableStateListOf<Any>(RouteTodayScreen) }
+        NavDisplay(
+            backStack = backStack,
+            onBack = { backStack.removeLastOrNull() },
+            entryProvider = { key ->
+                when (key) {
+                    is RouteTodayScreen -> NavEntry(key) {
+                        TodayScreen()
+                    }
+
+                    is RouteMonthScreen -> NavEntry(key) {
+
+                    }
+
+                    else -> NavEntry(Unit) { Text("Unknown route") }
+                }
+            }
+        )
     }
+}
+
+@Composable
+fun Greeting() {
+    Text("LKDFJLSDKJF")
 }
