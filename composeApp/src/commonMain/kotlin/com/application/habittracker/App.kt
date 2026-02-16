@@ -11,6 +11,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.application.habittracker.nav.RouteMonthScreen
 import com.application.habittracker.nav.RouteTodayScreen
+import com.application.habittracker.screen.MonthScreen
 import com.application.habittracker.screen.TodayScreen
 import com.application.habittracker.theme.AppTheme
 import com.application.habittracker.theme.MyThemeColor
@@ -43,11 +44,19 @@ fun App(
             entryProvider = { key ->
                 when (key) {
                     is RouteTodayScreen -> NavEntry(key) {
-                        TodayScreen()
+                        TodayScreen(
+                            gotoMonthlyScreen = { backStack.add(RouteMonthScreen) }
+                        )
                     }
 
                     is RouteMonthScreen -> NavEntry(key) {
-
+                        MonthScreen(
+                            gotoYearScreen = {
+                                if (backStack.size > 1) {
+                                    backStack.removeLastOrNull()
+                                }
+                            }
+                        )
                     }
 
                     else -> NavEntry(Unit) { Text("Unknown route") }

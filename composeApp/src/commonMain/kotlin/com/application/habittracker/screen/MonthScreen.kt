@@ -12,13 +12,13 @@ import androidx.compose.ui.Modifier
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun TodayScreen(gotoMonthlyScreen: () -> Unit) {
+fun MonthScreen(gotoYearScreen: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column {
-            Text("Today Screen")
+            Text("Month Screen")
             Button(
-                onClick = { gotoMonthlyScreen() },
-                content = { Text("Goto Monthly Screen") }
+                onClick = { gotoYearScreen() },
+                content = { Text("Goto Yearly Screen") }
             )
         }
     }
