@@ -1,6 +1,5 @@
 package com.application.habittracker
 
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -9,12 +8,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.application.habittracker.di.appModule
 import com.application.habittracker.nav.RouteMonthScreen
+import com.application.habittracker.nav.RouteSettingsScreen
 import com.application.habittracker.nav.RouteTodayScreen
-import com.application.habittracker.screen.MonthScreen
-import com.application.habittracker.screen.TodayScreen
 import com.application.habittracker.theme.AppTheme
 import com.application.habittracker.theme.MyThemeColor
+import com.application.habittracker.ui.screen.month.MonthScreen
+import com.application.habittracker.ui.screen.settings.SettingsScreen
+import com.application.habittracker.ui.screen.today.TodayScreen
+import org.koin.compose.KoinApplication
 
 @Composable
 fun App(
@@ -22,51 +25,40 @@ fun App(
     darkTheme: Boolean,
     dynamicColor: Boolean,
 ) {
-    var themeSelection by remember { mutableStateOf("GREEN") }
     var darkMode by remember { mutableStateOf(darkTheme) }
     var dynamicTheme by remember { mutableStateOf(dynamicColor) }
 
-    val selectedTheme = when (themeSelection) {
-        "GREEN" -> MyThemeColor.GREEN
-        else -> MyThemeColor.GREEN
-    }
+    KoinApplication(application = { modules(appModule(context)) }) {
+        AppTheme(
+            darkTheme = darkMode,
+            selectedTheme = MyThemeColor.GREEN,
+            dynamicColor = dynamicTheme && dynamicColor
+        ) {
+            val backStack = remember { mutableStateListOf<Any>(RouteTodayScreen) }
+            NavDisplay(
+                backStack = backStack,
+                onBack = { backStack.removeLastOrNull() },
+                entryProvider = { key ->
+                    when (key) {
+                        is RouteTodayScreen -> NavEntry(key) {
+                            TodayScreen(
+                                onNavigateToMonth = { backStack.add(RouteMonthScreen) },
+                                onNavigateToSettings = { backStack.add(RouteSettingsScreen) }
+                            )
+                        }
 
-    AppTheme(
-        darkTheme = darkMode,
-        selectedTheme = selectedTheme,
-        dynamicColor = dynamicTheme && dynamicColor
-    ) {
-        // Your app starts here
-        val backStack = remember { mutableStateListOf<Any>(RouteTodayScreen) }
-        NavDisplay(
-            backStack = backStack,
-            onBack = { backStack.removeLastOrNull() },
-            entryProvider = { key ->
-                when (key) {
-                    is RouteTodayScreen -> NavEntry(key) {
-                        TodayScreen(
-                            gotoMonthlyScreen = { backStack.add(RouteMonthScreen) }
-                        )
+                        is RouteMonthScreen -> NavEntry(key) {
+                            MonthScreen(onBack = { backStack.removeLastOrNull() })
+                        }
+
+                        is RouteSettingsScreen -> NavEntry(key) {
+                            SettingsScreen(onBack = { backStack.removeLastOrNull() })
+                        }
+
+                        else -> NavEntry(Unit) { }
                     }
-
-                    is RouteMonthScreen -> NavEntry(key) {
-                        MonthScreen(
-                            gotoYearScreen = {
-                                if (backStack.size > 1) {
-                                    backStack.removeLastOrNull()
-                                }
-                            }
-                        )
-                    }
-
-                    else -> NavEntry(Unit) { Text("Unknown route") }
                 }
-            }
-        )
+            )
+        }
     }
-}
-
-@Composable
-fun Greeting() {
-    Text("LKDFJLSDKJF")
 }

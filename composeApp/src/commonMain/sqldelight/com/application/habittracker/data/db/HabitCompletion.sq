@@ -1,0 +1,24 @@
+CREATE TABLE HabitCompletion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    habit_id INTEGER NOT NULL REFERENCES Habit(id) ON DELETE CASCADE,
+    completed_date TEXT NOT NULL,
+    UNIQUE(habit_id, completed_date)
+);
+
+insertCompletion:
+INSERT OR IGNORE INTO HabitCompletion(habit_id, completed_date) VALUES (?, ?);
+
+deleteCompletion:
+DELETE FROM HabitCompletion WHERE habit_id = ? AND completed_date = ?;
+
+getCompletedHabitIdsForDate:
+SELECT habit_id FROM HabitCompletion WHERE completed_date = ?;
+
+getCompletionCountsForMonth:
+SELECT completed_date, COUNT(*) AS count
+FROM HabitCompletion
+WHERE completed_date LIKE ?
+GROUP BY completed_date;
+
+isCompleted:
+SELECT COUNT(*) FROM HabitCompletion WHERE habit_id = ? AND completed_date = ?;

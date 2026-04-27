@@ -1,5 +1,7 @@
 package com.application.habittracker.theme
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 
 @Composable
@@ -9,4 +11,11 @@ actual fun AppTheme(
     selectedTheme: MyThemeColor,
     content: @Composable (() -> Unit)
 ) {
+    val (lightScheme, darkScheme) = getSelectedThemeColors(selectedTheme)
+    val colorScheme = if (darkTheme) darkScheme else lightScheme
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography(),
+        content = content
+    )
 }

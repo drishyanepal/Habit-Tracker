@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew :composeApp:assembleDebug)",
+      "Bash(./gradlew :composeApp:compileKotlinAndroid)",
+      "Bash(curl -sL \"https://plugins.gradle.org/m2/org/jetbrains/compose/org.jetbrains.compose.gradle.plugin/maven-metadata.xml\")",
+      "Bash(./gradlew :composeApp:generateCommonMainHabitDatabaseInterface :composeApp:compileKotlinAndroid)",
+      "Bash(./gradlew :composeApp:generateCommonMainHabitDatabaseInterface :composeApp:compileDebugKotlinAndroid)",
+      "Bash(curl -sL \"https://repo.maven.apache.org/maven2/io/insert-koin/koin-compose-multiplatform/maven-metadata.xml\")",
+      "Bash(curl -sL \"https://repo.maven.apache.org/maven2/io/insert-koin/koin-core/maven-metadata.xml\")",
+      "Bash(curl -sL \"https://repo.maven.apache.org/maven2/io/insert-koin/koin-compose/maven-metadata.xml\")",
+      "Bash(curl -sL \"https://repo.maven.apache.org/maven2/io/insert-koin/koin-compose-viewmodel/maven-metadata.xml\")",
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid)",
+      "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64)",
+      "Bash(curl -sL \"https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-datetime/maven-metadata.xml\")",
+      "Bash(curl -sL \"https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core/maven-metadata.xml\")",
+      "Bash(./gradlew :composeApp:dependencies --configuration iosSimulatorArm64CompileClasspath)",
+      "Bash(./gradlew :composeApp:dependencies)",
+      "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid)",
+      "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 --info)"
+    ]
+  }
+}
