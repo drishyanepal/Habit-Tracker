@@ -4,6 +4,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import com.application.habittracker.theme.color_palettes.BlueColorBase
 import com.application.habittracker.theme.color_palettes.GreenColorBase
 
 typealias lightScheme = ColorScheme
@@ -90,13 +91,14 @@ fun createColorSchemes(palette: MaterialThemeColorsPalette): Pair<lightScheme, d
 }
 
 enum class MyThemeColor {
-    PINK, YELLOW, GREEN, ORANGE, RED, NEO
+    PINK, YELLOW, GREEN, ORANGE, RED, NEO, BLUE
 }
 
-fun getSelectedThemeColors(myThemeSelected: MyThemeColor) : Pair<lightScheme, darkScheme> {
+fun getSelectedThemeColors(myThemeSelected: MyThemeColor): Pair<lightScheme, darkScheme> {
     return when (myThemeSelected) {
+        MyThemeColor.BLUE -> createColorSchemes(BlueColorBase)
         MyThemeColor.GREEN -> createColorSchemes(GreenColorBase)
-        else -> createColorSchemes(GreenColorBase)
+        else -> createColorSchemes(BlueColorBase)
     }
 }
 

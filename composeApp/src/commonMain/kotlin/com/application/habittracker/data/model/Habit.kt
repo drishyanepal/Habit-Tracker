@@ -6,6 +6,7 @@ data class Habit(
     val id: Long,
     val name: String,
     val colorIndex: Int,
+    val iconIndex: Int,
     val createdAt: LocalDate
 )
 

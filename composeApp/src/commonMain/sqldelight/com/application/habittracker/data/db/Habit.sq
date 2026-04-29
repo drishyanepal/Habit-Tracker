@@ -2,14 +2,15 @@ CREATE TABLE Habit (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     color_index INTEGER NOT NULL DEFAULT 0,
+    icon_index INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
 
 insertHabit:
-INSERT INTO Habit(name, color_index, created_at) VALUES (?, ?, ?);
+INSERT INTO Habit(name, color_index, icon_index, created_at) VALUES (?, ?, ?, ?);
 
 updateHabit:
-UPDATE Habit SET name = ?, color_index = ? WHERE id = ?;
+UPDATE Habit SET name = ?, color_index = ?, icon_index = ? WHERE id = ?;
 
 deleteHabit:
 DELETE FROM Habit WHERE id = ?;

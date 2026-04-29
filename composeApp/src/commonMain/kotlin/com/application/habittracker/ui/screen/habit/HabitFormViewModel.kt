@@ -7,12 +7,12 @@ import kotlinx.coroutines.launch
 
 class HabitFormViewModel(private val repository: HabitRepository) : ViewModel() {
 
-    fun saveHabit(id: Long?, name: String, colorIndex: Int, onDone: () -> Unit) {
+    fun saveHabit(id: Long?, name: String, colorIndex: Int, iconIndex: Int, onDone: () -> Unit) {
         viewModelScope.launch {
             if (id == null) {
-                repository.insertHabit(name.trim(), colorIndex)
+                repository.insertHabit(name.trim(), colorIndex, iconIndex)
             } else {
-                repository.updateHabit(id, name.trim(), colorIndex)
+                repository.updateHabit(id, name.trim(), colorIndex, iconIndex)
             }
             onDone()
         }

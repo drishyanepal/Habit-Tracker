@@ -17,8 +17,8 @@ import kotlinx.datetime.toLocalDateTime
 
 interface HabitRepository {
     fun getAllHabits(): Flow<List<Habit>>
-    suspend fun insertHabit(name: String, colorIndex: Int)
-    suspend fun updateHabit(id: Long, name: String, colorIndex: Int)
+    suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int)
+    suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int)
     suspend fun deleteHabit(id: Long)
     suspend fun toggleCompletion(habitId: Long, date: LocalDate)
     suspend fun getHabitsWithStatusForDate(date: LocalDate): List<HabitWithStatus>
@@ -35,16 +35,26 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
             .mapToList(Dispatchers.Default)
             .map { list -> list.map { it.toDomain() } }
 
-    override suspend fun insertHabit(name: String, colorIndex: Int) =
+    override suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int) =
         withContext(Dispatchers.Default) {
             val today = today()
-            queries.insertHabit(name = name, color_index = colorIndex.toLong(), created_at = today)
+            queries.insertHabit(
+                name = name,
+                color_index = colorIndex.toLong(),
+                icon_index = iconIndex.toLong(),
+                created_at = today
+            )
             Unit
         }
 
-    override suspend fun updateHabit(id: Long, name: String, colorIndex: Int) =
+    override suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int) =
         withContext(Dispatchers.Default) {
-            queries.updateHabit(name = name, color_index = colorIndex.toLong(), id = id)
+            queries.updateHabit(
+                name = name,
+                color_index = colorIndex.toLong(),
+                icon_index = iconIndex.toLong(),
+                id = id
+            )
             Unit
         }
 
@@ -102,5 +112,6 @@ private fun com.application.habittracker.data.db.Habit.toDomain(): Habit = Habit
     id = id,
     name = name,
     colorIndex = color_index.toInt(),
+    iconIndex = icon_index.toInt(),
     createdAt = LocalDate.parse(created_at)
 )
