@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
@@ -51,7 +52,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -74,6 +77,7 @@ import com.application.habittracker.ui.component.HABIT_ICONS
 import com.application.habittracker.ui.component.HABIT_TEMPLATES
 import com.application.habittracker.ui.component.HabitTemplate
 import com.application.habittracker.ui.component.TemplateCategory
+import kotlinx.datetime.LocalTime
 import org.koin.compose.viewmodel.koinViewModel
 
 private enum class HabitFormStep { Templates, Form }
@@ -129,9 +133,10 @@ fun HabitFormSheet(
                     initialName = habit?.name ?: prefilledName,
                     initialIconIndex = habit?.iconIndex ?: prefilledIconIndex,
                     initialColorIndex = habit?.colorIndex ?: prefilledColorIndex,
+                    initialReminderTime = habit?.reminderTime,
                     onBack = if (habit == null) ({ step = HabitFormStep.Templates }) else onDismiss,
-                    onSave = { name, colorIndex, iconIndex ->
-                        viewModel.saveHabit(habit?.id, name, colorIndex, iconIndex, onDismiss)
+                    onSave = { name, colorIndex, iconIndex, reminderTime ->
+                        viewModel.saveHabit(habit?.id, name, colorIndex, iconIndex, reminderTime, onDismiss)
                     },
                     onDelete = if (habit != null) ({
                         viewModel.deleteHabit(habit.id, onDismiss)
@@ -332,21 +337,25 @@ private fun TemplateRow(template: HabitTemplate, onClick: () -> Unit) {
 // Custom habit form
 // ──────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomHabitForm(
     habit: Habit?,
     initialName: String,
     initialIconIndex: Int,
     initialColorIndex: Int,
+    initialReminderTime: LocalTime?,
     onBack: () -> Unit,
-    onSave: (name: String, colorIndex: Int, iconIndex: Int) -> Unit,
+    onSave: (name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?) -> Unit,
     onDelete: (() -> Unit)?
 ) {
     var name by remember { mutableStateOf(initialName) }
     var selectedColorIndex by remember { mutableIntStateOf(initialColorIndex) }
     var selectedIconIndex by remember { mutableIntStateOf(initialIconIndex) }
+    var reminderTime by remember { mutableStateOf(initialReminderTime) }
     var showColorPicker by remember { mutableStateOf(false) }
     var showIconPicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val selectedColor = HABIT_COLORS.getOrElse(selectedColorIndex) { HABIT_COLORS[2] }
@@ -387,7 +396,7 @@ private fun CustomHabitForm(
                     .clip(CircleShape)
                     .background(if (name.isNotBlank()) Green else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable(enabled = name.isNotBlank()) {
-                        onSave(name, selectedColorIndex, selectedIconIndex)
+                        onSave(name, selectedColorIndex, selectedIconIndex, reminderTime)
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -595,6 +604,69 @@ private fun CustomHabitForm(
                     onClick = {}
                 )
             }
+
+            // Reminders section label
+            Text(
+                "Reminders",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Reminder card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                AppearanceRow(
+                    leadingIcon = {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF3F51B5)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    },
+                    label = "Reminder time",
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                reminderTime?.formatLabel() ?: "Off",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (reminderTime != null) {
+                                Spacer(Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { reminderTime = null },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear reminder",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            } else {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    onClick = { showTimePicker = true }
+                )
+            }
         }
     }
 
@@ -674,6 +746,34 @@ private fun CustomHabitForm(
         )
     }
 
+    // Time picker dialog
+    if (showTimePicker) {
+        val initial = reminderTime ?: LocalTime(8, 0)
+        val timePickerState = rememberTimePickerState(
+            initialHour = initial.hour,
+            initialMinute = initial.minute,
+            is24Hour = false
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("Reminder time") },
+            text = {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    TimePicker(state = timePickerState)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    reminderTime = LocalTime(timePickerState.hour, timePickerState.minute)
+                    showTimePicker = false
+                }) { Text("Set") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     // Delete confirm dialog
     if (showDeleteConfirm && onDelete != null) {
         AlertDialog(
@@ -715,4 +815,15 @@ private fun AppearanceRow(
         )
         trailing()
     }
+}
+
+private fun LocalTime.formatLabel(): String {
+    val h12 = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    val period = if (hour < 12) "AM" else "PM"
+    val mm = minute.toString().padStart(2, '0')
+    return "$h12:$mm $period"
 }

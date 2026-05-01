@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -46,9 +46,14 @@ private val DAY_HEADERS = listOf("M", "T", "W", "T", "F", "S", "S")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MonthScreen(onBack: () -> Unit) {
+fun MonthScreen() {
     val viewModel = koinViewModel<MonthViewModel>()
     val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.refresh()
+    }
+
     val today = Instant
         .fromEpochMilliseconds(kotlin.time.Clock.System.now().toEpochMilliseconds())
         .toLocalDateTime(TimeZone.currentSystemDefault()).date
@@ -57,11 +62,6 @@ fun MonthScreen(onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("History") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
             )
         }
     ) { padding ->

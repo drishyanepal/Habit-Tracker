@@ -7,18 +7,19 @@ import com.application.habittracker.data.model.Habit
 import com.application.habittracker.data.model.HabitWithStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 interface HabitRepository {
     fun getAllHabits(): Flow<List<Habit>>
-    suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int)
-    suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int)
+    suspend fun getAllHabitsOnce(): List<Habit>
+    suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?): Long
+    suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?)
     suspend fun deleteHabit(id: Long)
     suspend fun toggleCompletion(habitId: Long, date: LocalDate)
     suspend fun getHabitsWithStatusForDate(date: LocalDate): List<HabitWithStatus>
@@ -35,28 +36,45 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
             .mapToList(Dispatchers.Default)
             .map { list -> list.map { it.toDomain() } }
 
-    override suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int) =
-        withContext(Dispatchers.Default) {
-            val today = today()
+    override suspend fun getAllHabitsOnce(): List<Habit> = withContext(Dispatchers.Default) {
+        queries.getAllHabits().executeAsList().map { it.toDomain() }
+    }
+
+    override suspend fun insertHabit(
+        name: String,
+        colorIndex: Int,
+        iconIndex: Int,
+        reminderTime: LocalTime?
+    ): Long = withContext(Dispatchers.Default) {
+        val today = today()
+        db.transactionWithResult {
             queries.insertHabit(
                 name = name,
                 color_index = colorIndex.toLong(),
                 icon_index = iconIndex.toLong(),
-                created_at = today
+                created_at = today,
+                reminder_time = reminderTime?.toString()
             )
-            Unit
+            queries.lastInsertRowId().executeAsOne()
         }
+    }
 
-    override suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int) =
-        withContext(Dispatchers.Default) {
-            queries.updateHabit(
-                name = name,
-                color_index = colorIndex.toLong(),
-                icon_index = iconIndex.toLong(),
-                id = id
-            )
-            Unit
-        }
+    override suspend fun updateHabit(
+        id: Long,
+        name: String,
+        colorIndex: Int,
+        iconIndex: Int,
+        reminderTime: LocalTime?
+    ) = withContext(Dispatchers.Default) {
+        queries.updateHabit(
+            name = name,
+            color_index = colorIndex.toLong(),
+            icon_index = iconIndex.toLong(),
+            reminder_time = reminderTime?.toString(),
+            id = id
+        )
+        Unit
+    }
 
     override suspend fun deleteHabit(id: Long) = withContext(Dispatchers.Default) {
         queries.deleteHabit(id)
@@ -113,5 +131,6 @@ private fun com.application.habittracker.data.db.Habit.toDomain(): Habit = Habit
     name = name,
     colorIndex = color_index.toInt(),
     iconIndex = icon_index.toInt(),
-    createdAt = LocalDate.parse(created_at)
+    createdAt = LocalDate.parse(created_at),
+    reminderTime = reminder_time?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
 )

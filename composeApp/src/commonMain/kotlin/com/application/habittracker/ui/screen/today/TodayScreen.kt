@@ -53,6 +53,7 @@ import com.application.habittracker.ui.component.HABIT_ICONS
 import com.application.habittracker.ui.screen.habit.HabitFormSheet
 import com.application.habittracker.ui.util.rememberSoundPlayer
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
 import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -237,7 +238,7 @@ private fun HabitRow(
                 color = textColor
             )
             Text(
-                text = "Every day",
+                text = habit.reminderTime?.let { "Every day · ${it.formatLabel()}" } ?: "Every day",
                 style = MaterialTheme.typography.bodySmall,
                 color = subtitleColor
             )
@@ -287,4 +288,15 @@ private fun LocalDate.formatFull(): String {
     val day = dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
     val monthName = month.name.lowercase().replaceFirstChar { it.uppercase() }
     return "$day, $dayOfMonth $monthName $year"
+}
+
+private fun LocalTime.formatLabel(): String {
+    val h12 = when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+    }
+    val period = if (hour < 12) "AM" else "PM"
+    val mm = minute.toString().padStart(2, '0')
+    return "$h12:$mm $period"
 }

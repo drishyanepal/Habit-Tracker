@@ -17,7 +17,12 @@
       "Bash(./gradlew :composeApp:dependencies --configuration iosSimulatorArm64CompileClasspath)",
       "Bash(./gradlew :composeApp:dependencies)",
       "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid)",
-      "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 --info)"
+      "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 --info)",
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid --no-daemon -q)",
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid --no-daemon)",
+      "Bash(./gradlew :composeApp:generateCommonMainHabitDatabaseInterface --no-daemon --rerun-tasks)",
+      "Bash(./gradlew :composeApp:compileDebugKotlinAndroid --no-daemon --rerun-tasks)",
+      "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 --no-daemon)"
     ]
   }
 }

@@ -2,17 +2,47 @@ package com.application.habittracker.ui.screen.habit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.application.habittracker.data.model.Habit
 import com.application.habittracker.data.repository.HabitRepository
+import com.application.habittracker.notification.NotificationScheduler
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalTime
 
-class HabitFormViewModel(private val repository: HabitRepository) : ViewModel() {
+class HabitFormViewModel(
+    private val repository: HabitRepository,
+    private val scheduler: NotificationScheduler
+) : ViewModel() {
 
-    fun saveHabit(id: Long?, name: String, colorIndex: Int, iconIndex: Int, onDone: () -> Unit) {
+    fun saveHabit(
+        id: Long?,
+        name: String,
+        colorIndex: Int,
+        iconIndex: Int,
+        reminderTime: LocalTime?,
+        onDone: () -> Unit
+    ) {
         viewModelScope.launch {
+            val trimmed = name.trim()
+            val habitId: Long
             if (id == null) {
-                repository.insertHabit(name.trim(), colorIndex, iconIndex)
+                habitId = repository.insertHabit(trimmed, colorIndex, iconIndex, reminderTime)
             } else {
-                repository.updateHabit(id, name.trim(), colorIndex, iconIndex)
+                repository.updateHabit(id, trimmed, colorIndex, iconIndex, reminderTime)
+                habitId = id
+            }
+            scheduler.cancel(habitId)
+            if (reminderTime != null) {
+                scheduler.schedule(
+                    Habit(
+                        id = habitId,
+                        name = trimmed,
+                        colorIndex = colorIndex,
+                        iconIndex = iconIndex,
+                        createdAt = LocalDate(1970, 1, 1),
+                        reminderTime = reminderTime
+                    )
+                )
             }
             onDone()
         }
@@ -21,6 +51,7 @@ class HabitFormViewModel(private val repository: HabitRepository) : ViewModel() 
     fun deleteHabit(id: Long, onDone: () -> Unit) {
         viewModelScope.launch {
             repository.deleteHabit(id)
+            scheduler.cancel(id)
             onDone()
         }
     }

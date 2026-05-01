@@ -47,6 +47,10 @@ class MonthViewModel(private val repository: HabitRepository) : ViewModel() {
         loadCurrentMonth()
     }
 
+    fun refresh() {
+        loadCurrentMonth()
+    }
+
     private fun loadCurrentMonth() {
         val state = _uiState.value
         viewModelScope.launch {

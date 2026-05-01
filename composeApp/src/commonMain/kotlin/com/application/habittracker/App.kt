@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.application.habittracker.data.preferences.AppPreferences
 import com.application.habittracker.di.appModule
 import com.application.habittracker.theme.AppTheme
 import com.application.habittracker.theme.MyThemeColor
@@ -41,6 +42,7 @@ import com.application.habittracker.ui.screen.month.MonthScreen
 import com.application.habittracker.ui.screen.settings.SettingsScreen
 import com.application.habittracker.ui.screen.today.TodayScreen
 import org.koin.compose.KoinApplication
+import org.koin.compose.koinInject
 import org.koin.dsl.koinConfiguration
 
 private data class TabItem(val label: String, val icon: ImageVector)
@@ -57,42 +59,57 @@ fun App(
     dynamicColor: Boolean,
     context: Any? = null,
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
-
     KoinApplication(
         configuration = koinConfiguration(declaration = { modules(appModule(context)) }),
-        content = {
-            AppTheme(
-                darkTheme = darkTheme,
-                selectedTheme = MyThemeColor.BLUE,
-                dynamicColor = dynamicColor,
-            ) {
-                Scaffold(
-                    bottomBar = {
-                        AppBottomBar(
-                            selectedTab = selectedTab,
-                            onTabSelected = { selectedTab = it },
-                        )
-                    }
-                ) { padding ->
-                    Crossfade(
-                        targetState = selectedTab,
-                        animationSpec = tween(durationMillis = 250),
-                        modifier = Modifier.padding(padding),
-                    ) { tab ->
-                        when (tab) {
-                            0 -> TodayScreen(
-                                onNavigateToMonth = { selectedTab = 1 },
-                                onNavigateToSettings = { selectedTab = 2 },
-                            )
-                            1 -> MonthScreen(onBack = { selectedTab = 0 })
-                            2 -> SettingsScreen(onBack = { selectedTab = 0 })
-                        }
-                    }
+        content = { AppContent(darkTheme, dynamicColor) }
+    )
+}
+
+@Composable
+private fun AppContent(darkTheme: Boolean, dynamicColor: Boolean) {
+    val prefs = koinInject<AppPreferences>()
+    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTheme by remember {
+        mutableStateOf(
+            runCatching { MyThemeColor.valueOf(prefs.getTheme()) }.getOrDefault(MyThemeColor.BLUE)
+        )
+    }
+
+    AppTheme(
+        darkTheme = darkTheme,
+        selectedTheme = selectedTheme,
+        dynamicColor = dynamicColor,
+    ) {
+        Scaffold(
+            bottomBar = {
+                AppBottomBar(
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                )
+            }
+        ) { padding ->
+            Crossfade(
+                targetState = selectedTab,
+                animationSpec = tween(durationMillis = 250),
+                modifier = Modifier.padding(padding),
+            ) { tab ->
+                when (tab) {
+                    0 -> TodayScreen(
+                        onNavigateToMonth = { selectedTab = 1 },
+                        onNavigateToSettings = { selectedTab = 2 },
+                    )
+                    1 -> MonthScreen()
+                    2 -> SettingsScreen(
+                        selectedTheme = selectedTheme,
+                        onThemeChange = { theme ->
+                            selectedTheme = theme
+                            prefs.setTheme(theme.name)
+                        },
+                    )
                 }
             }
         }
-    )
+    }
 }
 
 @Composable

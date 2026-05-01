@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.application.habittracker.data.model.HabitWithStatus
 import com.application.habittracker.data.repository.HabitRepository
+import com.application.habittracker.notification.NotificationScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +14,10 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-class TodayViewModel(private val repository: HabitRepository) : ViewModel() {
+class TodayViewModel(
+    private val repository: HabitRepository,
+    private val scheduler: NotificationScheduler
+) : ViewModel() {
 
     private val _habits = MutableStateFlow<List<HabitWithStatus>>(emptyList())
     val habits: StateFlow<List<HabitWithStatus>> = _habits.asStateFlow()
@@ -22,10 +26,17 @@ class TodayViewModel(private val repository: HabitRepository) : ViewModel() {
         .fromEpochMilliseconds(kotlin.time.Clock.System.now().toEpochMilliseconds())
         .toLocalDateTime(TimeZone.currentSystemDefault()).date
 
+    private var rescheduledOnce = false
+
     init {
+        scheduler.requestPermission()
         viewModelScope.launch {
-            repository.getAllHabits().collect {
+            repository.getAllHabits().collect { habits ->
                 refreshHabits()
+                if (!rescheduledOnce) {
+                    scheduler.rescheduleAll(habits)
+                    rescheduledOnce = true
+                }
             }
         }
     }
