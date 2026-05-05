@@ -64,6 +64,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -134,9 +136,10 @@ fun HabitFormSheet(
                     initialIconIndex = habit?.iconIndex ?: prefilledIconIndex,
                     initialColorIndex = habit?.colorIndex ?: prefilledColorIndex,
                     initialReminderTime = habit?.reminderTime,
+                    initialDescription = habit?.description,
                     onBack = if (habit == null) ({ step = HabitFormStep.Templates }) else onDismiss,
-                    onSave = { name, colorIndex, iconIndex, reminderTime ->
-                        viewModel.saveHabit(habit?.id, name, colorIndex, iconIndex, reminderTime, onDismiss)
+                    onSave = { name, colorIndex, iconIndex, reminderTime, description ->
+                        viewModel.saveHabit(habit?.id, name, colorIndex, iconIndex, reminderTime, description, onDismiss)
                     },
                     onDelete = if (habit != null) ({
                         viewModel.deleteHabit(habit.id, onDismiss)
@@ -345,18 +348,23 @@ private fun CustomHabitForm(
     initialIconIndex: Int,
     initialColorIndex: Int,
     initialReminderTime: LocalTime?,
+    initialDescription: String?,
     onBack: () -> Unit,
-    onSave: (name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?) -> Unit,
+    onSave: (name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?) -> Unit,
     onDelete: (() -> Unit)?
 ) {
     var name by remember { mutableStateOf(initialName) }
     var selectedColorIndex by remember { mutableIntStateOf(initialColorIndex) }
     var selectedIconIndex by remember { mutableIntStateOf(initialIconIndex) }
     var reminderTime by remember { mutableStateOf(initialReminderTime) }
+    var description by remember { mutableStateOf(initialDescription ?: "") }
     var showColorPicker by remember { mutableStateOf(false) }
     var showIconPicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showDescriptionDialog by remember { mutableStateOf(false) }
+    var descriptionDraft by remember { mutableStateOf(description) }
+    val nameFocusRequester = remember { FocusRequester() }
 
     val selectedColor = HABIT_COLORS.getOrElse(selectedColorIndex) { HABIT_COLORS[2] }
     val selectedIcon = HABIT_ICONS.getOrElse(selectedIconIndex) { "✅" }
@@ -396,7 +404,7 @@ private fun CustomHabitForm(
                     .clip(CircleShape)
                     .background(if (name.isNotBlank()) Green else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable(enabled = name.isNotBlank()) {
-                        onSave(name, selectedColorIndex, selectedIconIndex, reminderTime)
+                        onSave(name, selectedColorIndex, selectedIconIndex, reminderTime, description.takeIf { it.isNotBlank() })
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -463,7 +471,9 @@ private fun CustomHabitForm(
                                     innerTextField()
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(nameFocusRequester)
                         )
                         Text(
                             "Every day",
@@ -476,7 +486,9 @@ private fun CustomHabitForm(
                         Icons.Default.Edit,
                         contentDescription = "Edit name",
                         tint = Color.White.copy(alpha = 0.75f),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable { nameFocusRequester.requestFocus() }
                     )
                 }
             }
@@ -590,7 +602,7 @@ private fun CustomHabitForm(
                     trailing = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "Empty",
+                                if (description.isBlank()) "Empty" else description.take(20) + if (description.length > 20) "…" else "",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -601,7 +613,7 @@ private fun CustomHabitForm(
                             )
                         }
                     },
-                    onClick = {}
+                    onClick = { showDescriptionDialog = true }
                 )
             }
 
@@ -787,6 +799,36 @@ private fun CustomHabitForm(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Description dialog
+    if (showDescriptionDialog) {
+        AlertDialog(
+            onDismissRequest = { showDescriptionDialog = false },
+            title = { Text("Description") },
+            text = {
+                OutlinedTextField(
+                    value = descriptionDraft,
+                    onValueChange = { if (it.length <= 300) descriptionDraft = it },
+                    placeholder = { Text("Optional note about this habit…") },
+                    supportingText = { Text("${descriptionDraft.length}/300") },
+                    maxLines = 5,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    description = descriptionDraft
+                    showDescriptionDialog = false
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    descriptionDraft = description
+                    showDescriptionDialog = false
+                }) { Text("Cancel") }
             }
         )
     }

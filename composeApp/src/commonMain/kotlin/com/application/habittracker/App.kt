@@ -1,39 +1,24 @@
 package com.application.habittracker
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.application.habittracker.data.preferences.AppPreferences
 import com.application.habittracker.di.appModule
 import com.application.habittracker.theme.AppTheme
@@ -114,72 +99,14 @@ private fun AppContent(darkTheme: Boolean, dynamicColor: Boolean) {
 
 @Composable
 private fun AppBottomBar(selectedTab: Int, onTabSelected: (Int) -> Unit) {
-    Surface(
-        tonalElevation = 0.dp,
-        shadowElevation = 12.dp,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            tabs.forEachIndexed { index, tab ->
-                BottomTabItem(
-                    tab = tab,
-                    selected = selectedTab == index,
-                    onClick = { onTabSelected(index) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BottomTabItem(tab: TabItem, selected: Boolean, onClick: () -> Unit) {
-    val pillColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.surfaceVariant
-                      else MaterialTheme.colorScheme.surface,
-        animationSpec = tween(250),
-        label = "pill",
-    )
-    val contentColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary
-                      else MaterialTheme.colorScheme.onSurface,
-        animationSpec = tween(250),
-        label = "content",
-    )
-
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        // Capsule pill — wraps only the icon
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(pillColor)
-                .padding(horizontal = 20.dp, vertical = 9.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = tab.icon,
-                contentDescription = tab.label,
-                tint = contentColor,
-                modifier = Modifier.size(36.dp),
+    NavigationBar {
+        tabs.forEachIndexed { index, tab ->
+            NavigationBarItem(
+                selected = selectedTab == index,
+                onClick = { onTabSelected(index) },
+                icon = { Icon(tab.icon, contentDescription = tab.label) },
+                label = { Text(tab.label) },
             )
         }
-        Text(
-            text = tab.label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = contentColor,
-        )
     }
 }

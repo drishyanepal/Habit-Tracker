@@ -9,7 +9,8 @@ data class Habit(
     val colorIndex: Int,
     val iconIndex: Int,
     val createdAt: LocalDate,
-    val reminderTime: LocalTime? = null
+    val reminderTime: LocalTime? = null,
+    val description: String? = null
 )
 
 data class HabitWithStatus(

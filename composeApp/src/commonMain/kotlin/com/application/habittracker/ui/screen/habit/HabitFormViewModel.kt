@@ -20,15 +20,16 @@ class HabitFormViewModel(
         colorIndex: Int,
         iconIndex: Int,
         reminderTime: LocalTime?,
+        description: String?,
         onDone: () -> Unit
     ) {
         viewModelScope.launch {
             val trimmed = name.trim()
             val habitId: Long
             if (id == null) {
-                habitId = repository.insertHabit(trimmed, colorIndex, iconIndex, reminderTime)
+                habitId = repository.insertHabit(trimmed, colorIndex, iconIndex, reminderTime, description)
             } else {
-                repository.updateHabit(id, trimmed, colorIndex, iconIndex, reminderTime)
+                repository.updateHabit(id, trimmed, colorIndex, iconIndex, reminderTime, description)
                 habitId = id
             }
             scheduler.cancel(habitId)

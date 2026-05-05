@@ -18,8 +18,8 @@ import kotlinx.datetime.toLocalDateTime
 interface HabitRepository {
     fun getAllHabits(): Flow<List<Habit>>
     suspend fun getAllHabitsOnce(): List<Habit>
-    suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?): Long
-    suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?)
+    suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?): Long
+    suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?)
     suspend fun deleteHabit(id: Long)
     suspend fun toggleCompletion(habitId: Long, date: LocalDate)
     suspend fun getHabitsWithStatusForDate(date: LocalDate): List<HabitWithStatus>
@@ -44,7 +44,8 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
         name: String,
         colorIndex: Int,
         iconIndex: Int,
-        reminderTime: LocalTime?
+        reminderTime: LocalTime?,
+        description: String?
     ): Long = withContext(Dispatchers.Default) {
         val today = today()
         db.transactionWithResult {
@@ -53,7 +54,8 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
                 color_index = colorIndex.toLong(),
                 icon_index = iconIndex.toLong(),
                 created_at = today,
-                reminder_time = reminderTime?.toString()
+                reminder_time = reminderTime?.toString(),
+                description = description?.takeIf { it.isNotBlank() }
             )
             queries.lastInsertRowId().executeAsOne()
         }
@@ -64,13 +66,15 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
         name: String,
         colorIndex: Int,
         iconIndex: Int,
-        reminderTime: LocalTime?
+        reminderTime: LocalTime?,
+        description: String?
     ) = withContext(Dispatchers.Default) {
         queries.updateHabit(
             name = name,
             color_index = colorIndex.toLong(),
             icon_index = iconIndex.toLong(),
             reminder_time = reminderTime?.toString(),
+            description = description?.takeIf { it.isNotBlank() },
             id = id
         )
         Unit
@@ -132,5 +136,6 @@ private fun com.application.habittracker.data.db.Habit.toDomain(): Habit = Habit
     colorIndex = color_index.toInt(),
     iconIndex = icon_index.toInt(),
     createdAt = LocalDate.parse(created_at),
-    reminderTime = reminder_time?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
+    reminderTime = reminder_time?.let { runCatching { LocalTime.parse(it) }.getOrNull() },
+    description = description
 )
