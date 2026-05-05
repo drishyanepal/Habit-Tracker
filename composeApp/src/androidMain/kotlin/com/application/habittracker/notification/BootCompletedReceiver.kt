@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.application.habittracker.data.db.HabitDatabase
+import com.application.habittracker.data.preferences.AppPreferences
 import com.application.habittracker.data.repository.HabitRepositoryImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +24,8 @@ class BootCompletedReceiver : BroadcastReceiver() {
                 val driver = AndroidSqliteDriver(HabitDatabase.Schema, context.applicationContext, "habit.db")
                 val repo = HabitRepositoryImpl(HabitDatabase(driver))
                 val habits = repo.getAllHabitsOnce()
-                NotificationScheduler(context.applicationContext).rescheduleAll(habits)
+                val prefs = AppPreferences(context.applicationContext)
+                NotificationScheduler(context.applicationContext, prefs).rescheduleAll(habits)
             } finally {
                 pending.finish()
             }

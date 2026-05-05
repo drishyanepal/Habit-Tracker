@@ -20,8 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,9 +47,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.application.habittracker.notification.NotificationScheduler
 import com.application.habittracker.theme.MyThemeColor
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import org.koin.compose.koinInject
+import kotlin.time.Clock
 
 private data class ThemeOption(val color: MyThemeColor, val swatch: Color, val label: String)
+
+private fun currentClockLabel(): String {
+    val instant = Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
+    val now = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+    val hh = now.hour.toString().padStart(2, '0')
+    val mm = now.minute.toString().padStart(2, '0')
+    val ss = now.second.toString().padStart(2, '0')
+    return "$hh:$mm:$ss"
+}
 
 private val THEME_OPTIONS = listOf(
     ThemeOption(MyThemeColor.BLUE,   Color(0xFF0057CC), "Blue"),
@@ -64,7 +80,10 @@ fun SettingsScreen(
     selectedTheme: MyThemeColor,
     onThemeChange: (MyThemeColor) -> Unit,
 ) {
-    var reminderEnabled by remember { mutableStateOf(false) }
+    val scheduler = koinInject<NotificationScheduler>()
+    val prefs = koinInject<com.application.habittracker.data.preferences.AppPreferences>()
+    var notificationsEnabled by remember { mutableStateOf(prefs.getNotificationsEnabled()) }
+    var lastTestSentAt by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -117,26 +136,39 @@ fun SettingsScreen(
                 SettingsCard {
                     SettingsRow(
                         icon = Icons.Default.Notifications,
-                        title = "Daily Reminder",
-                        subtitle = "Get nudged to check in each day",
+                        title = "Notifications",
+                        subtitle = if (notificationsEnabled)
+                            "Habit reminders are on"
+                        else
+                            "All notifications are silenced",
                     ) {
                         Switch(
-                            checked = reminderEnabled,
-                            onCheckedChange = { reminderEnabled = it }
+                            checked = notificationsEnabled,
+                            onCheckedChange = {
+                                notificationsEnabled = it
+                                prefs.setNotificationsEnabled(it)
+                                if (!it) lastTestSentAt = null
+                            }
                         )
                     }
                     AnimatedVisibility(
-                        visible = reminderEnabled,
+                        visible = notificationsEnabled,
                         enter = expandVertically(),
                         exit = shrinkVertically(),
                     ) {
                         Column {
                             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                             SettingsRow(
-                                icon = Icons.Default.AccessTime,
-                                title = "Reminder Time",
-                                subtitle = "08:00 AM",
-                            ) {}
+                                icon = Icons.Default.NotificationsActive,
+                                title = "Send Test Notification",
+                                subtitle = lastTestSentAt?.let { "Last sent: $it" }
+                                    ?: "Verify notifications are working",
+                            ) {
+                                TextButton(onClick = {
+                                    scheduler.sendTestNotification()
+                                    lastTestSentAt = currentClockLabel()
+                                }) { Text("Send") }
+                            }
                         }
                     }
                 }

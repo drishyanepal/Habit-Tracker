@@ -12,6 +12,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.application.habittracker.MainActivity
 import com.application.habittracker.R
+import com.application.habittracker.data.preferences.AppPreferences
+import kotlinx.datetime.LocalTime
 
 class HabitReminderReceiver : BroadcastReceiver() {
 
@@ -19,6 +21,26 @@ class HabitReminderReceiver : BroadcastReceiver() {
         val habitId = intent.getLongExtra(EXTRA_HABIT_ID, -1L)
         val habitName = intent.getStringExtra(EXTRA_HABIT_NAME) ?: return
         if (habitId < 0) return
+
+        val reminderTime = intent.getStringExtra(EXTRA_REMINDER_TIME)
+            ?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
+
+        val prefs = context.getSharedPreferences(
+            AppPreferences.PREFS_NAME, Context.MODE_PRIVATE
+        )
+        val notificationsOn = prefs.getBoolean(AppPreferences.KEY_NOTIFICATIONS_ENABLED, true)
+
+        if (notificationsOn && reminderTime != null) {
+            NotificationScheduler.scheduleExact(
+                context.applicationContext,
+                habitId,
+                habitName,
+                reminderTime,
+                NotificationScheduler.nextTriggerMillisFor(reminderTime),
+            )
+        }
+
+        if (!notificationsOn) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val granted = ContextCompat.checkSelfPermission(
@@ -53,5 +75,6 @@ class HabitReminderReceiver : BroadcastReceiver() {
     companion object {
         const val EXTRA_HABIT_ID = "habit_id"
         const val EXTRA_HABIT_NAME = "habit_name"
+        const val EXTRA_REMINDER_TIME = "reminder_time"
     }
 }

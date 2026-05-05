@@ -15,7 +15,7 @@ import org.koin.dsl.module
 fun appModule(context: Any? = null) = module {
     single { DatabaseDriverFactory(context) }
     single { AppPreferences(context) }
-    single { NotificationScheduler(context) }
+    single { NotificationScheduler(context, get()) }
     single { HabitDatabase(get<DatabaseDriverFactory>().createDriver()) }
     single<HabitRepository> { HabitRepositoryImpl(get()) }
     viewModel { TodayViewModel(get(), get()) }
