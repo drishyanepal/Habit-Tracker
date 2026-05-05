@@ -24,6 +24,7 @@ interface HabitRepository {
     suspend fun toggleCompletion(habitId: Long, date: LocalDate)
     suspend fun getHabitsWithStatusForDate(date: LocalDate): List<HabitWithStatus>
     suspend fun getMonthCompletionRatios(year: Int, month: Int): Map<Int, Float>
+    suspend fun getHabitMonthCompletions(habitId: Long, year: Int, month: Int): Set<Int>
 }
 
 class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
@@ -121,6 +122,15 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
                 val day = row.completed_date.substringAfterLast('-').toIntOrNull() ?: 0
                 day to (row.count.toFloat() / totalHabits).coerceIn(0f, 1f)
             }
+        }
+
+    override suspend fun getHabitMonthCompletions(habitId: Long, year: Int, month: Int): Set<Int> =
+        withContext(Dispatchers.Default) {
+            val monthPrefix = "$year-${month.toString().padStart(2, '0')}%"
+            completionQueries.getCompletionDatesForHabitInMonth(habitId, monthPrefix)
+                .executeAsList()
+                .mapNotNull { it.substringAfterLast('-').toIntOrNull() }
+                .toSet()
         }
 
     private fun today(): String {

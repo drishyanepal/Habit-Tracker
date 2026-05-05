@@ -22,3 +22,6 @@ GROUP BY completed_date;
 
 isCompleted:
 SELECT COUNT(*) FROM HabitCompletion WHERE habit_id = ? AND completed_date = ?;
+
+getCompletionDatesForHabitInMonth:
+SELECT completed_date FROM HabitCompletion WHERE habit_id = ? AND completed_date LIKE ?;

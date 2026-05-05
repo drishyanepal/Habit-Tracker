@@ -2,6 +2,7 @@ package com.application.habittracker.ui.screen.month
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.application.habittracker.data.model.Habit
 import com.application.habittracker.data.repository.HabitRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +16,9 @@ import kotlinx.datetime.toLocalDateTime
 data class MonthUiState(
     val year: Int,
     val month: Int,
-    val completionRatios: Map<Int, Float> = emptyMap()
+    val completionRatios: Map<Int, Float> = emptyMap(),
+    val habits: List<Habit> = emptyList(),
+    val selectedHabitId: Long? = null
 )
 
 class MonthViewModel(private val repository: HabitRepository) : ViewModel() {
@@ -30,6 +33,7 @@ class MonthViewModel(private val repository: HabitRepository) : ViewModel() {
     val uiState: StateFlow<MonthUiState> = _uiState.asStateFlow()
 
     init {
+        loadHabits()
         loadCurrentMonth()
     }
 
@@ -47,14 +51,34 @@ class MonthViewModel(private val repository: HabitRepository) : ViewModel() {
         loadCurrentMonth()
     }
 
-    fun refresh() {
+    fun selectHabit(habitId: Long?) {
+        _uiState.value = _uiState.value.copy(selectedHabitId = habitId)
         loadCurrentMonth()
+    }
+
+    fun refresh() {
+        loadHabits()
+        loadCurrentMonth()
+    }
+
+    private fun loadHabits() {
+        viewModelScope.launch {
+            val habits = repository.getAllHabitsOnce()
+            _uiState.value = _uiState.value.copy(habits = habits)
+        }
     }
 
     private fun loadCurrentMonth() {
         val state = _uiState.value
         viewModelScope.launch {
-            val ratios = repository.getMonthCompletionRatios(state.year, state.month)
+            val ratios = if (state.selectedHabitId == null) {
+                repository.getMonthCompletionRatios(state.year, state.month)
+            } else {
+                val completedDays = repository.getHabitMonthCompletions(
+                    state.selectedHabitId, state.year, state.month
+                )
+                completedDays.associateWith { 1f }
+            }
             _uiState.value = _uiState.value.copy(completionRatios = ratios)
         }
     }
