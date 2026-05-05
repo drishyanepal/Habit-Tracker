@@ -22,7 +22,9 @@
       "Bash(./gradlew :composeApp:compileDebugKotlinAndroid --no-daemon)",
       "Bash(./gradlew :composeApp:generateCommonMainHabitDatabaseInterface --no-daemon --rerun-tasks)",
       "Bash(./gradlew :composeApp:compileDebugKotlinAndroid --no-daemon --rerun-tasks)",
-      "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 --no-daemon)"
+      "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 --no-daemon)",
+      "Bash(Get-ChildItem -Recurse -Directory -Path \".\\\\app\\\\src\\\\main\")",
+      "Bash(./gradlew :composeApp:compileCommonMainKotlinMetadata)"
     ]
   }
 }

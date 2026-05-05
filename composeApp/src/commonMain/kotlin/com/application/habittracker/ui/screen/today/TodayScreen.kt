@@ -1,11 +1,17 @@
 package com.application.habittracker.ui.screen.today
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,16 +24,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -64,6 +79,9 @@ fun TodayScreen(
 ) {
     val viewModel = koinViewModel<TodayViewModel>()
     val habits by viewModel.habits.collectAsState()
+    val displayedHabits by viewModel.displayedHabits.collectAsState()
+    val sortOption by viewModel.sortOption.collectAsState()
+    val activeFilters by viewModel.activeFilters.collectAsState()
     val today = viewModel.today
 
     var showFormSheet by remember { mutableStateOf(false) }
@@ -105,28 +123,66 @@ fun TodayScreen(
         ) {
             Spacer(Modifier.height(8.dp))
             ProgressSection(habits)
-            Spacer(Modifier.height(16.dp))
-            if (habits.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        "No habits yet. Tap + to add one.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(habits, key = { it.habit.id }) { habitWithStatus ->
-                        HabitRow(
-                            habitWithStatus = habitWithStatus,
-                            onToggle = { viewModel.toggleCompletion(habitWithStatus.habit.id) },
-                            onEdit = {
-                                editingHabit = habitWithStatus.habit
-                                showFormSheet = true
-                            }
+            Spacer(Modifier.height(12.dp))
+            SortFilterBar(
+                sortOption = sortOption,
+                activeFilters = activeFilters,
+                onSortChange = viewModel::setSortOption,
+                onFilterToggle = viewModel::toggleFilter,
+                onClearFilters = viewModel::clearFilters
+            )
+            Spacer(Modifier.height(12.dp))
+            when {
+                habits.isEmpty() -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "No habits yet. Tap + to add one.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    item { Spacer(Modifier.height(80.dp)) }
+                }
+                displayedHabits.isEmpty() -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                "No habits match the current filters.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Surface(
+                                onClick = viewModel::clearFilters,
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    "Clear Filters",
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(displayedHabits, key = { it.habit.id }) { habitWithStatus ->
+                            HabitRow(
+                                habitWithStatus = habitWithStatus,
+                                onToggle = { viewModel.toggleCompletion(habitWithStatus.habit.id) },
+                                onEdit = {
+                                    editingHabit = habitWithStatus.habit
+                                    showFormSheet = true
+                                }
+                            )
+                        }
+                        item { Spacer(Modifier.height(80.dp)) }
+                    }
                 }
             }
         }
@@ -140,6 +196,154 @@ fun TodayScreen(
                 editingHabit = null
             }
         )
+    }
+}
+
+@Composable
+private fun SortFilterBar(
+    sortOption: SortOption,
+    activeFilters: Set<FilterOption>,
+    onSortChange: (SortOption) -> Unit,
+    onFilterToggle: (FilterOption) -> Unit,
+    onClearFilters: () -> Unit
+) {
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Sort pill with dropdown
+        Box {
+            Surface(
+                onClick = { showSortMenu = true },
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shadowElevation = 0.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.SwapVert,
+                        contentDescription = "Sort",
+                        modifier = Modifier.size(15.dp),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        sortOption.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+            DropdownMenu(
+                expanded = showSortMenu,
+                onDismissRequest = { showSortMenu = false }
+            ) {
+                SortOption.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                option.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = if (sortOption == option) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        },
+                        onClick = {
+                            onSortChange(option)
+                            showSortMenu = false
+                        },
+                        leadingIcon = if (sortOption == option) {
+                            {
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        } else null
+                    )
+                }
+            }
+        }
+
+        // Filter chips (Completed / Incomplete — mutually exclusive)
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterOption.entries.forEach { filter ->
+                val isSelected = filter in activeFilters
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onFilterToggle(filter) },
+                    label = {
+                        Text(
+                            filter.label,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    },
+                    leadingIcon = if (isSelected) {
+                        {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    } else null,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        selectedLabelColor = MaterialTheme.colorScheme.primary,
+                        selectedLeadingIconColor = MaterialTheme.colorScheme.primary
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = isSelected,
+                        selectedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                        selectedBorderWidth = 1.dp
+                    )
+                )
+            }
+        }
+
+        // Clear all button (animated, appears when any filter active)
+        AnimatedVisibility(
+            visible = activeFilters.isNotEmpty(),
+            enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.7f),
+            exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.7f)
+        ) {
+            Surface(
+                onClick = onClearFilters,
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
+                modifier = Modifier.size(30.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Clear all filters",
+                        modifier = Modifier.size(15.dp),
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+        }
     }
 }
 
