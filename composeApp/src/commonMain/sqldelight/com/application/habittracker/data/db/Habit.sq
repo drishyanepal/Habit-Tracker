@@ -5,14 +5,15 @@ CREATE TABLE Habit (
     icon_index INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     reminder_time TEXT,
-    description TEXT
+    description TEXT,
+    repeat_days TEXT
 );
 
 insertHabit:
-INSERT INTO Habit(name, color_index, icon_index, created_at, reminder_time, description) VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO Habit(name, color_index, icon_index, created_at, reminder_time, description, repeat_days) VALUES (?, ?, ?, ?, ?, ?, ?);
 
 updateHabit:
-UPDATE Habit SET name = ?, color_index = ?, icon_index = ?, reminder_time = ?, description = ? WHERE id = ?;
+UPDATE Habit SET name = ?, color_index = ?, icon_index = ?, reminder_time = ?, description = ?, repeat_days = ? WHERE id = ?;
 
 deleteHabit:
 DELETE FROM Habit WHERE id = ?;

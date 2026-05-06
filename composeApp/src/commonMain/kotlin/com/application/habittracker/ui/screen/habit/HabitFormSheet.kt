@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +35,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
@@ -137,9 +138,10 @@ fun HabitFormSheet(
                     initialColorIndex = habit?.colorIndex ?: prefilledColorIndex,
                     initialReminderTime = habit?.reminderTime,
                     initialDescription = habit?.description,
+                    initialRepeatDays = habit?.repeatDays ?: emptySet(),
                     onBack = if (habit == null) ({ step = HabitFormStep.Templates }) else onDismiss,
-                    onSave = { name, colorIndex, iconIndex, reminderTime, description ->
-                        viewModel.saveHabit(habit?.id, name, colorIndex, iconIndex, reminderTime, description, onDismiss)
+                    onSave = { name, colorIndex, iconIndex, reminderTime, description, repeatDays ->
+                        viewModel.saveHabit(habit?.id, name, colorIndex, iconIndex, reminderTime, description, repeatDays, onDismiss)
                     },
                     onDelete = if (habit != null) ({
                         viewModel.deleteHabit(habit.id, onDismiss)
@@ -349,8 +351,9 @@ private fun CustomHabitForm(
     initialColorIndex: Int,
     initialReminderTime: LocalTime?,
     initialDescription: String?,
+    initialRepeatDays: Set<Int>,
     onBack: () -> Unit,
-    onSave: (name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?) -> Unit,
+    onSave: (name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?, repeatDays: Set<Int>) -> Unit,
     onDelete: (() -> Unit)?
 ) {
     var name by remember { mutableStateOf(initialName) }
@@ -358,6 +361,7 @@ private fun CustomHabitForm(
     var selectedIconIndex by remember { mutableIntStateOf(initialIconIndex) }
     var reminderTime by remember { mutableStateOf(initialReminderTime) }
     var description by remember { mutableStateOf(initialDescription ?: "") }
+    var repeatDays by remember { mutableStateOf(initialRepeatDays) }
     var showColorPicker by remember { mutableStateOf(false) }
     var showIconPicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -404,7 +408,7 @@ private fun CustomHabitForm(
                     .clip(CircleShape)
                     .background(if (name.isNotBlank()) Green else MaterialTheme.colorScheme.surfaceVariant)
                     .clickable(enabled = name.isNotBlank()) {
-                        onSave(name, selectedColorIndex, selectedIconIndex, reminderTime, description.takeIf { it.isNotBlank() })
+                        onSave(name, selectedColorIndex, selectedIconIndex, reminderTime, description.takeIf { it.isNotBlank() }, repeatDays)
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -420,6 +424,7 @@ private fun CustomHabitForm(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -475,21 +480,18 @@ private fun CustomHabitForm(
                                 .fillMaxWidth()
                                 .focusRequester(nameFocusRequester)
                         )
+                        val repeatLabel = if (repeatDays.isEmpty()) "Every day"
+                        else {
+                            val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                            repeatDays.sorted().joinToString(", ") { dayNames[it] }
+                        }
                         Text(
-                            "Every day",
+                            repeatLabel,
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.75f),
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = "Edit name",
-                        tint = Color.White.copy(alpha = 0.75f),
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable { nameFocusRequester.requestFocus() }
-                    )
                 }
             }
 
@@ -617,6 +619,60 @@ private fun CustomHabitForm(
                 )
             }
 
+            // Schedule section label
+            Text(
+                "Schedule",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Day-of-week picker
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        "Repeat",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        dayLabels.forEachIndexed { index, label ->
+                            val effectiveDays = if (repeatDays.isEmpty()) (0..6).toSet() else repeatDays
+                            val isSelected = index in effectiveDays
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) selectedColor
+                                        else MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                    .clickable {
+                                        val newEffective = if (index in effectiveDays) effectiveDays - index else effectiveDays + index
+                                        if (newEffective.isNotEmpty()) {
+                                            repeatDays = if (newEffective.size == 7) emptySet() else newEffective
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    label,
+                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Reminders section label
             Text(
                 "Reminders",
@@ -689,10 +745,10 @@ private fun CustomHabitForm(
             title = { Text("Select Color") },
             text = {
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                    columns = GridCells.Fixed(5),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.height(120.dp)
+                    modifier = Modifier.height(200.dp)
                 ) {
                     itemsIndexed(HABIT_COLORS) { index, color ->
                         Box(

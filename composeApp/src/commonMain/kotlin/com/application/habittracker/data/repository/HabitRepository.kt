@@ -13,18 +13,20 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.toLocalDateTime
 
 interface HabitRepository {
     fun getAllHabits(): Flow<List<Habit>>
     suspend fun getAllHabitsOnce(): List<Habit>
-    suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?): Long
-    suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?)
+    suspend fun insertHabit(name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?, repeatDays: Set<Int>): Long
+    suspend fun updateHabit(id: Long, name: String, colorIndex: Int, iconIndex: Int, reminderTime: LocalTime?, description: String?, repeatDays: Set<Int>)
     suspend fun deleteHabit(id: Long)
     suspend fun toggleCompletion(habitId: Long, date: LocalDate)
     suspend fun getHabitsWithStatusForDate(date: LocalDate): List<HabitWithStatus>
     suspend fun getMonthCompletionRatios(year: Int, month: Int): Map<Int, Float>
     suspend fun getHabitMonthCompletions(habitId: Long, year: Int, month: Int): Set<Int>
+    suspend fun getHabitStreaks(habitId: Long): Pair<Int, Int>
 }
 
 class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
@@ -46,7 +48,8 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
         colorIndex: Int,
         iconIndex: Int,
         reminderTime: LocalTime?,
-        description: String?
+        description: String?,
+        repeatDays: Set<Int>
     ): Long = withContext(Dispatchers.Default) {
         val today = today()
         db.transactionWithResult {
@@ -56,7 +59,8 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
                 icon_index = iconIndex.toLong(),
                 created_at = today,
                 reminder_time = reminderTime?.toString(),
-                description = description?.takeIf { it.isNotBlank() }
+                description = description?.takeIf { it.isNotBlank() },
+                repeat_days = repeatDays.toRepeatDaysString()
             )
             queries.lastInsertRowId().executeAsOne()
         }
@@ -68,7 +72,8 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
         colorIndex: Int,
         iconIndex: Int,
         reminderTime: LocalTime?,
-        description: String?
+        description: String?,
+        repeatDays: Set<Int>
     ) = withContext(Dispatchers.Default) {
         queries.updateHabit(
             name = name,
@@ -76,6 +81,7 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
             icon_index = iconIndex.toLong(),
             reminder_time = reminderTime?.toString(),
             description = description?.takeIf { it.isNotBlank() },
+            repeat_days = repeatDays.toRepeatDaysString(),
             id = id
         )
         Unit
@@ -104,12 +110,18 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
             val completedIds = completionQueries
                 .getCompletedHabitIdsForDate(date.toString())
                 .executeAsList().toSet()
-            habits.map { entity ->
-                HabitWithStatus(
-                    habit = entity.toDomain(),
-                    isCompleted = entity.id in completedIds
-                )
-            }
+            val dayOfWeek = date.dayOfWeek.isoDayNumber - 1 // 0=Mon..6=Sun
+            habits
+                .filter { entity ->
+                    val days = parseRepeatDays(entity.repeat_days)
+                    days.isEmpty() || dayOfWeek in days
+                }
+                .map { entity ->
+                    HabitWithStatus(
+                        habit = entity.toDomain(),
+                        isCompleted = entity.id in completedIds
+                    )
+                }
         }
 
     override suspend fun getMonthCompletionRatios(year: Int, month: Int): Map<Int, Float> =
@@ -133,6 +145,36 @@ class HabitRepositoryImpl(private val db: HabitDatabase) : HabitRepository {
                 .toSet()
         }
 
+    override suspend fun getHabitStreaks(habitId: Long): Pair<Int, Int> =
+        withContext(Dispatchers.Default) {
+            val allEpochDays = completionQueries.getAllCompletionDatesForHabit(habitId)
+                .executeAsList()
+                .mapNotNull { runCatching { LocalDate.parse(it).toEpochDays() }.getOrNull() }
+                .toSortedSet()
+
+            if (allEpochDays.isEmpty()) return@withContext 0 to 0
+
+            val todayEpoch = LocalDate.parse(today()).toEpochDays()
+
+            var currentStreak = 0
+            var checkDay = todayEpoch
+            while (allEpochDays.contains(checkDay)) { currentStreak++; checkDay-- }
+            if (currentStreak == 0) {
+                checkDay = todayEpoch - 1
+                while (allEpochDays.contains(checkDay)) { currentStreak++; checkDay-- }
+            }
+
+            val sorted = allEpochDays.toList()
+            var bestStreak = if (sorted.isEmpty()) 0 else 1
+            var run = 1
+            for (i in 1 until sorted.size) {
+                run = if (sorted[i] == sorted[i - 1] + 1) run + 1 else 1
+                if (run > bestStreak) bestStreak = run
+            }
+
+            currentStreak to bestStreak
+        }
+
     private fun today(): String {
         val ms = kotlin.time.Clock.System.now().toEpochMilliseconds()
         return Instant.fromEpochMilliseconds(ms)
@@ -147,5 +189,16 @@ private fun com.application.habittracker.data.db.Habit.toDomain(): Habit = Habit
     iconIndex = icon_index.toInt(),
     createdAt = LocalDate.parse(created_at),
     reminderTime = reminder_time?.let { runCatching { LocalTime.parse(it) }.getOrNull() },
-    description = description
+    description = description,
+    repeatDays = parseRepeatDays(repeat_days)
 )
+
+private fun parseRepeatDays(raw: String?): Set<Int> {
+    if (raw.isNullOrBlank()) return emptySet()
+    return raw.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+}
+
+private fun Set<Int>.toRepeatDaysString(): String? {
+    if (isEmpty()) return null
+    return sorted().joinToString(",")
+}

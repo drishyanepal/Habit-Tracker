@@ -25,3 +25,6 @@ SELECT COUNT(*) FROM HabitCompletion WHERE habit_id = ? AND completed_date = ?;
 
 getCompletionDatesForHabitInMonth:
 SELECT completed_date FROM HabitCompletion WHERE habit_id = ? AND completed_date LIKE ?;
+
+getAllCompletionDatesForHabit:
+SELECT completed_date FROM HabitCompletion WHERE habit_id = ? ORDER BY completed_date DESC;

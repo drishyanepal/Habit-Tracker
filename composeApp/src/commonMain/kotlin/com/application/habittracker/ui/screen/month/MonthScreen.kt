@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -32,12 +34,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,10 +51,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Canvas
 import com.application.habittracker.data.model.Habit
 import com.application.habittracker.ui.component.HABIT_COLORS
 import com.application.habittracker.ui.component.HABIT_ICONS
@@ -59,14 +69,17 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
+import kotlin.math.roundToInt
 
 private val DAY_HEADERS = listOf("M", "T", "W", "T", "F", "S", "S")
+private val WEEK_LABELS = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonthScreen() {
     val viewModel = koinViewModel<MonthViewModel>()
     val state by viewModel.uiState.collectAsState()
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
@@ -83,43 +96,264 @@ fun MonthScreen() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("History") },
-            )
+            TopAppBar(title = { Text("History") })
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
+            Spacer(Modifier.height(8.dp))
             HabitSelector(
                 habits = state.habits,
                 selectedHabitId = state.selectedHabitId,
                 onSelect = viewModel::selectHabit
             )
-            Spacer(Modifier.height(16.dp))
-            MonthHeader(
-                year = state.year,
-                month = state.month,
-                onPrev = viewModel::previousMonth,
-                onNext = viewModel::nextMonth
-            )
-            Spacer(Modifier.height(16.dp))
-            CalendarGrid(
-                year = state.year,
-                month = state.month,
-                completionRatios = state.completionRatios,
-                today = today,
-                baseColor = calendarColor
-            )
-            Spacer(Modifier.height(24.dp))
-            if (state.selectedHabitId == null) {
-                AggregateLegend(color = calendarColor)
-            } else {
-                HabitLegend(color = calendarColor)
+            Spacer(Modifier.height(12.dp))
+
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("Calendar") }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Charts") }
+                )
             }
+
+            Spacer(Modifier.height(16.dp))
+
+            if (selectedTab == 0) {
+                CalendarTab(
+                    state = state,
+                    today = today,
+                    calendarColor = calendarColor,
+                    onPrev = viewModel::previousMonth,
+                    onNext = viewModel::nextMonth
+                )
+            } else {
+                ChartsTab(state = state, habitColor = calendarColor)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarTab(
+    state: MonthUiState,
+    today: LocalDate,
+    calendarColor: Color,
+    onPrev: () -> Unit,
+    onNext: () -> Unit
+) {
+    Column {
+        MonthHeader(
+            year = state.year,
+            month = state.month,
+            onPrev = onPrev,
+            onNext = onNext
+        )
+        Spacer(Modifier.height(16.dp))
+        CalendarGrid(
+            year = state.year,
+            month = state.month,
+            completionRatios = state.completionRatios,
+            today = today,
+            baseColor = calendarColor
+        )
+        Spacer(Modifier.height(24.dp))
+        if (state.selectedHabitId == null) {
+            AggregateLegend(color = calendarColor)
+        } else {
+            HabitLegend(color = calendarColor)
+        }
+    }
+}
+
+@Composable
+private fun ChartsTab(state: MonthUiState, habitColor: Color) {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        StatsRow(state = state, habitColor = habitColor)
+        WeeklyPatternSection(pattern = state.weeklyPattern, barColor = habitColor)
+        if (state.selectedHabitId != null && state.bestStreak > 0) {
+            StreakSection(current = state.currentStreak, best = state.bestStreak, color = habitColor)
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun StatsRow(state: MonthUiState, habitColor: Color) {
+    val rateText = "${(state.completionRateThisMonth * 100).roundToInt()}%"
+    if (state.selectedHabitId == null) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard(
+                label = "Active Days",
+                value = state.totalCompletionsThisMonth.toString(),
+                color = habitColor,
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                label = "Avg Rate",
+                value = rateText,
+                color = habitColor,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard(
+                label = "Completed",
+                value = state.totalCompletionsThisMonth.toString(),
+                color = habitColor,
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                label = "Rate",
+                value = rateText,
+                color = habitColor,
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                label = "Streak",
+                value = "🔥 ${state.currentStreak}",
+                color = habitColor,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = color.copy(alpha = 0.1f),
+        tonalElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = color
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyPatternSection(pattern: List<Float>, barColor: Color) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Weekly Pattern",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+        )
+        Text(
+            text = "Average completion by day of week",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(4.dp))
+
+        val bgColor = MaterialTheme.colorScheme.surfaceVariant
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(130.dp)
+        ) {
+            drawBarChart(
+                values = pattern,
+                barColor = barColor,
+                bgColor = bgColor,
+            )
+        }
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            WEEK_LABELS.forEach { label ->
+                Text(
+                    text = label,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private fun DrawScope.drawBarChart(
+    values: List<Float>,
+    barColor: Color,
+    bgColor: Color,
+) {
+    if (values.isEmpty()) return
+    val spacing = 8.dp.toPx()
+    val barWidth = (size.width - spacing * (values.size - 1)) / values.size
+    val chartHeight = size.height
+
+    values.forEachIndexed { i, value ->
+        val x = i * (barWidth + spacing)
+        val radius = CornerRadius(6.dp.toPx())
+
+        drawRoundRect(
+            color = bgColor,
+            topLeft = Offset(x, 0f),
+            size = Size(barWidth, chartHeight),
+            cornerRadius = radius
+        )
+
+        if (value > 0f) {
+            val barHeight = (value.coerceIn(0f, 1f) * chartHeight).coerceAtLeast(8.dp.toPx())
+            drawRoundRect(
+                color = barColor.copy(alpha = 0.85f),
+                topLeft = Offset(x, chartHeight - barHeight),
+                size = Size(barWidth, barHeight),
+                cornerRadius = radius
+            )
+        }
+    }
+}
+
+@Composable
+private fun StreakSection(current: Int, best: Int, color: Color) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Streaks",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard(
+                label = "Current Streak",
+                value = "🔥 $current days",
+                color = color,
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                label = "Best Streak",
+                value = "⭐ $best days",
+                color = color,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -157,7 +391,6 @@ private fun HabitSelector(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon badge
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -204,7 +437,6 @@ private fun HabitSelector(
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .clip(RoundedCornerShape(16.dp))
         ) {
-            // All Habits item
             DropdownMenuItem(
                 text = {
                     Text(
@@ -295,7 +527,6 @@ private fun HabitSelector(
 
 @Composable
 private fun MonthHeader(year: Int, month: Int, onPrev: () -> Unit, onNext: () -> Unit) {
-    val monthName = monthName(month)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -304,7 +535,7 @@ private fun MonthHeader(year: Int, month: Int, onPrev: () -> Unit, onNext: () ->
         IconButton(onClick = onPrev) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month")
         }
-        Text("$monthName $year", style = MaterialTheme.typography.titleMedium)
+        Text("${monthName(month)} $year", style = MaterialTheme.typography.titleMedium)
         IconButton(onClick = onNext) {
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
         }
@@ -353,12 +584,7 @@ private fun CalendarGrid(
                     Box(modifier = Modifier.weight(1f)) {
                         if (isCurrentMonth) {
                             val ratio = completionRatios[day] ?: 0f
-                            DayCell(
-                                day = day,
-                                ratio = ratio,
-                                isToday = isToday,
-                                baseColor = baseColor
-                            )
+                            DayCell(day = day, ratio = ratio, isToday = isToday, baseColor = baseColor)
                         }
                     }
                 }

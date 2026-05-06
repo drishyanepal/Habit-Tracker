@@ -25,7 +25,14 @@
       "Bash(./gradlew :composeApp:compileKotlinIosSimulatorArm64 --no-daemon)",
       "Bash(Get-ChildItem -Recurse -Directory -Path \".\\\\app\\\\src\\\\main\")",
       "Bash(./gradlew :composeApp:compileCommonMainKotlinMetadata)",
-      "Bash(./gradlew :composeApp:generateCommonMainHabitDatabaseInterface)"
+      "Bash(./gradlew :composeApp:generateCommonMainHabitDatabaseInterface)",
+      "Bash(cp \"composeApp/src/main/res/drawable/ic_launcher_background.xml\" \"composeApp/src/androidMain/res/drawable/ic_launcher_background.xml\")",
+      "Bash(cp \"composeApp/src/main/res/mipmap-anydpi-v26/ic_launcher.xml\" \"composeApp/src/androidMain/res/mipmap-anydpi-v26/ic_launcher.xml\")",
+      "Bash(cp \"composeApp/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml\" \"composeApp/src/androidMain/res/mipmap-anydpi-v26/ic_launcher_round.xml\")",
+      "Bash(xxd \"composeApp/src/androidMain/res/drawable/ic_launcher_background.xml\")",
+      "Bash(xxd \"composeApp/src/androidMain/res/mipmap-anydpi-v26/ic_launcher.xml\")",
+      "Bash(xxd \"composeApp/src/androidMain/res/mipmap-anydpi-v26/ic_launcher_round.xml\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\DELL\\\\AndroidStudioProjects\\\\HabitTracker\" -Recurse -Name)"
     ]
   }
 }

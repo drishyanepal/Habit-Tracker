@@ -10,7 +10,8 @@ data class Habit(
     val iconIndex: Int,
     val createdAt: LocalDate,
     val reminderTime: LocalTime? = null,
-    val description: String? = null
+    val description: String? = null,
+    val repeatDays: Set<Int> = emptySet() // empty = every day; 0=Mon … 6=Sun
 )
 
 data class HabitWithStatus(
