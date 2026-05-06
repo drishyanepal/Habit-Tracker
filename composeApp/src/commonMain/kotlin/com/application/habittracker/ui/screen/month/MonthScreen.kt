@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -97,7 +98,8 @@ fun MonthScreen() {
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("History") })
-        }
+        },
+        contentWindowInsets = WindowInsets(0)
     ) { padding ->
         Column(
             modifier = Modifier
@@ -134,10 +136,11 @@ fun MonthScreen() {
                     today = today,
                     calendarColor = calendarColor,
                     onPrev = viewModel::previousMonth,
-                    onNext = viewModel::nextMonth
+                    onNext = viewModel::nextMonth,
+                    modifier = Modifier.weight(1f)
                 )
             } else {
-                ChartsTab(state = state, habitColor = calendarColor)
+                ChartsTab(state = state, habitColor = calendarColor, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -149,9 +152,10 @@ private fun CalendarTab(
     today: LocalDate,
     calendarColor: Color,
     onPrev: () -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column {
+    Column(modifier = modifier) {
         MonthHeader(
             year = state.year,
             month = state.month,
@@ -176,9 +180,9 @@ private fun CalendarTab(
 }
 
 @Composable
-private fun ChartsTab(state: MonthUiState, habitColor: Color) {
+private fun ChartsTab(state: MonthUiState, habitColor: Color, modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
+        modifier = modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         StatsRow(state = state, habitColor = habitColor)
@@ -186,7 +190,6 @@ private fun ChartsTab(state: MonthUiState, habitColor: Color) {
         if (state.selectedHabitId != null && state.bestStreak > 0) {
             StreakSection(current = state.currentStreak, best = state.bestStreak, color = habitColor)
         }
-        Spacer(Modifier.height(8.dp))
     }
 }
 
